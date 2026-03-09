@@ -268,6 +268,21 @@ Expr* parse_primary(Lexer& l){
             break;
 
         }
+        case Tok_Star:
+        {
+            lexer_next(l);
+
+            Expr* Operand = parse_expression(l, 999);
+
+            FuncCall fn;
+            fn.name = "_pointer";
+            fn.args.push_back(Operand);
+
+
+            e = new Expr(fn);
+
+            break;
+        }
         case Tok_Exclam:
         {
             lexer_next(l);
