@@ -206,23 +206,6 @@ struct Statement {
         IfStatement          *if_else_statement;          // Statement_If
         ReturnStatement      *return_statement;           // Statement_Return
     };
-
-    Statement() : kind(Statement_Empty) {}
-
-    Statement(DeclarationStatement *s)
-    : kind(Statement_Declaration), declaration_statement(s) {}
-
-    Statement(DefinitionStatement *s)
-    : kind(Statement_Definition), definition_statement(s) {}
-
-    Statement(ExpressionStatement *s)
-    : kind(Statement_Expression), expression_statement(s) {}
-
-    Statement(IfStatement *s)
-    : kind(Statement_If), if_else_statement(s) {}
-
-    Statement(ReturnStatement *s)
-    : kind(Statement_Return), return_statement(s) {}
 };
 
 struct Parameter {
@@ -430,6 +413,7 @@ bool parse_statement(Lexer& l, Statement *s)
             return_stmt->root = root;
 
             // s = Statement(return_stmt);
+            s->kind = Statement_Return;
             s->return_statement = return_stmt;
 
             if (!lexer_expect(l, Tok_Semicolon)) return false;
