@@ -3,7 +3,7 @@
 #include <cctype>
 #include <stdio.h>
 
-#include "lexer.h"
+#include "lexer.hpp"
 
 bool isLetter(char c) {
     return (c >= 'a' && c <= 'z') ||

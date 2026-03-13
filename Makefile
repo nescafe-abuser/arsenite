@@ -15,10 +15,10 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CXX) $(OBJS) -o $(TARGET) $(CXXFLAGS)
 
-lexer.o: lexer.cpp lexer.h
+lexer.o: lexer.cpp lexer.hpp
 	$(CXX) -c lexer.cpp $(CXXFLAGS)
 
-parser.o: parser.cpp parser.hpp lexer.h
+parser.o: parser.cpp parser.hpp lexer.hpp
 	$(CXX) -c parser.cpp $(CXXFLAGS)
 
 codegen.o: codegen.cpp parser.hpp
