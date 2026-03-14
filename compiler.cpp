@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv) {
     std::string input_file = "";
-    std::string output_file = "a.out"; // Default output name
+    std::string output_file = "a.out";
     bool nocc = false;
     bool output_specified = false;
 
@@ -52,7 +52,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Capture the generated C IR in a string
     std::ostringstream ir_ss;
     emit_c_ir(ir_ss, f);
     std::string generated_c = ir_ss.str();
@@ -66,11 +65,7 @@ int main(int argc, char** argv) {
             std::cout << generated_c;
         }
     } else {
-        // New behavior: Pipe C IR into GCC
-        // Command: gcc -x c -o <output_name> -
-        // '-x c' tells gcc to treat stdin as C code
-        // '-' tells gcc to read from stdin
-        std::string cmd = "gcc -x c -o -g" + output_file + " -";
+        std::string cmd = "gcc -x c -o -g " + output_file + " -";
         
         FILE* gcc_pipe = popen(cmd.c_str(), "w");
         if (!gcc_pipe) {
