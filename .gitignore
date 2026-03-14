@@ -8,3 +8,5 @@ main
 lexer.c
 parser
 lexer
+*.o
+compiler

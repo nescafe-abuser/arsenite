@@ -84,7 +84,7 @@ struct Expr {
     ArrIndex arr_index;
   };
 
-  // Constructor declarations (Implemented in parser.cpp)
+  // Constructor declarations
   Expr(ArrIndex ar);
   Expr(FuncCall fn);
   Expr(Atom at);
@@ -107,6 +107,7 @@ struct ExpressionStatement {
 struct ReturnStatement {
   Expr *root;
 };
+
 struct Statement;
 struct IfStatement {
   Expr *if_condition;

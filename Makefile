@@ -1,19 +1,16 @@
-# DO NOT CHANGE TS. USE A MAKEFILE THE WAY YOU'RE SUPPOSED TO.
-# DO NOT INCLUDE SHIT YOU DON'T NEED TO.
-# DO NOT, FOR FUCKS SAKE, INCLUDE A FUCKING IMPLEMENTATION. I GOT TERRIBLE REDEFINITION ERRORS.
-
 CXX = g++
-
 CXXFLAGS = -Wall -Wextra -Wswitch -ggdb -I./ 
 
-TARGET = compiler
-
-OBJS = lexer.o parser.o codegen.o
+TARGET = arc
+OBJS = compiler.o lexer.o parser.o codegen.o
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CXX) $(OBJS) -o $(TARGET) $(CXXFLAGS)
+
+compiler.o: compiler.cpp lexer.h parser.hpp codegen.hpp
+	$(CXX) -c compiler.cpp $(CXXFLAGS)
 
 lexer.o: lexer.cpp lexer.h
 	$(CXX) -c lexer.cpp $(CXXFLAGS)
@@ -21,7 +18,7 @@ lexer.o: lexer.cpp lexer.h
 parser.o: parser.cpp parser.hpp lexer.h
 	$(CXX) -c parser.cpp $(CXXFLAGS)
 
-codegen.o: codegen.cpp parser.hpp
+codegen.o: codegen.cpp codegen.hpp parser.hpp
 	$(CXX) -c codegen.cpp $(CXXFLAGS)
 
 clean:

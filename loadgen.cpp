@@ -1,45 +1,85 @@
-    switch (statement->kind) {
-    case Statement_Return: {
-      std::cout << "\tret "; // Added indentation for QBE format
-      Expr *root = statement->return_statement->root;
-      if (root->kind == Expr_Atom) {
-        if (root->at.kind == Atom_Constant) {
-          std::cout << root->at.value;
-        } else if (root->at.kind == Atom_Variable) {
-          std::cout << sig_local << root->at.value;
-        }
-      }
-      std::cout << "\n";
-      break; // <--- ADD THIS BREAK
-    }
-    case Statement_Definition: {
-      std::cout << "\t"<< sig_local << statement->definition_statement->name << "=";
-      //%a=w copy value
-      std::cout << qbe_type(statement->definition_statement->type) << " ";
+#include "parser.hpp"
+#include <cstdint>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <vector>
 
-      auto expr=statement->definition_statement->right;
-      switch (expr->kind) {
-        case Expr_Atom:
-          switch (expr->at.kind) {
-            case Atom_Constant:
-              std::cout << "copy " << expr->at.value;
-              break;
-            case Atom_Variable:
-              std::cout << "add " << sig_local << expr->at.value << ",0";
-              break;
-          }
-          break;
-        case Expr_FuncCall:
-          std::cout << "call " << sig_global << expr->func_call.name << "(";
-          break;
-        case Expr_Operator:
-          break;
-        case Expr_ArrIndex:
-          break;
-      }
+#define sig_global "$"
+#define sig_local "%"
+#define sig_label "@"
 
-    } break;
-
+std::string qbe_type(Type type) {
+  uint64_t type_id = type.type_id;
+  for (auto mod : type.mods) {
+    switch (mod.kind) {
     default:
+      return "l";
       break;
     }
+  }
+  switch (type_id) {
+  case DefaultType_u64:
+    return "l";
+  case DefaultType_u32:
+    return "w";
+  case DefaultType_u8:
+    return "w";
+  case DefaultType_u16:
+    return "w";
+  case DefaultType_i8:
+    return "w";
+  case DefaultType_i16:
+    return "w";
+  case DefaultType_i32:
+    return "w";
+  case DefaultType_i64:
+    return "l";
+  case DefaultType_f32:
+    return "s";
+  case DefaultType_f64:
+    return "d";
+  case DefaultType_char8:
+    return "w";
+  case DefaultType_char16:
+    return "w";
+  case DefaultType_char32:
+    return "w";
+  case DefaultType_string:
+    return "l";
+  case DefaultTypeCount:
+    return "w";
+  default:
+    return "w";
+  }
+}
+
+
+static int temp_counter = 0;
+std::string next_temp() { return sig_local + std::to_string(temp_counter++); }
+
+void emit_qbe(const FunctionDefinition &f) {
+}
+
+int main() {
+  // Read the source file
+  std::ifstream file("main.at");
+  if (!file.is_open())
+    return 1;
+
+  std::ostringstream ss;
+  ss << file.rdbuf();
+
+  // Lex and Parse
+  Lexer l = lexer_lex_file(ss.str());
+  FunctionDefinition f{};
+
+  if (parse_function_definition(l, f)) {
+    emit_qbe(f);
+  } else {
+    std::cerr << "Codegen failed: Parsing error." << std::endl;
+    return 1;
+  }
+
+  return 0;
+}

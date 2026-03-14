@@ -1,117 +1,129 @@
+#include "codegen.hpp"
 #include "parser.hpp"
-#include <cstdint>
-#include <fstream>
 #include <iostream>
-#include <sstream>
+#include <string>
 #include <vector>
 
-#define sig_global "$"
-#define sig_local "%"
-#define sig_label "@"
-
-std::string qbe_type(Type type) {
-  uint64_t type_id = type.type_id;
-  for (auto mod : type.mods) {
-    switch (mod.kind) {
-    default:
-      return "l";
-      break;
+std::string c_type(Type type) {
+    std::string base;
+    
+    // Determine base type name
+    switch (type.type_id) {
+        case DefaultType_u8:   base = "uint8_t"; break;
+        case DefaultType_u16:  base = "uint16_t"; break;
+        case DefaultType_u32:  base = "uint32_t"; break;
+        case DefaultType_u64:  base = "uint64_t"; break;
+        case DefaultType_i8:   base = "int8_t"; break;
+        case DefaultType_i16:  base = "int16_t"; break;
+        case DefaultType_i32:  base = "int32_t"; break;
+        case DefaultType_i64:  base = "int64_t"; break;
+        case DefaultType_f32:  base = "float"; break;
+        case DefaultType_f64:  base = "double"; break;
+        case DefaultType_char8:  base = "char"; break;
+        case DefaultType_string: base = "char*"; break;
+        default:               base = "void"; break;
     }
-  }
-  switch (type_id) {
-  case DefaultType_u64:
-    return "l";
-  case DefaultType_u32:
-    return "w";
-  case DefaultType_u8:
-    return "w";
-  case DefaultType_u16:
-    return "w";
-  case DefaultType_i8:
-    return "w";
-  case DefaultType_i16:
-    return "w";
-  case DefaultType_i32:
-    return "w";
-  case DefaultType_i64:
-    return "l";
-  case DefaultType_f32:
-    return "s";
-  case DefaultType_f64:
-    return "d";
-  case DefaultType_char8:
-    return "w";
-  case DefaultType_char16:
-    return "w";
-  case DefaultType_char32:
-    return "w";
-  case DefaultType_string:
-    return "l";
-  case DefaultTypeCount:
-    return "w";
-  default:
-    return "w";
-  }
+
+    // Apply modifiers (e.g., []string -> char**)
+    for (auto mod : type.mods) {
+        if (mod.kind == Modifier_Arr || mod.kind == Modifier_Slice) {
+            base += "*";
+        }
+    }
+
+    return base;
 }
 
-
-static int temp_counter = 0;
-std::string next_temp() { return sig_local + std::to_string(temp_counter++); }
-
-void emit_qbe(const FunctionDefinition &f) {
-  if (f.name == "main") {
-    printf("export ");
-  }
-  printf("function ");
-  Type ret_type = f.return_type.value_or(Type{.type_id = DefaultType_u64});
-
-  std::cout << qbe_type(ret_type) << " ";
-
-  std::cout << sig_global << f.name;
-
-  // parameter ir
-  std::cout << "(";
-  long unsigned int i = 0;
-  for (auto param : f.parameters) {
-    auto param_type = param.type;
-    std::cout << qbe_type(param_type) << " ";
-    std::cout << sig_local << param.name;
-    if (i != f.parameters.size() - 1) {
-      std::cout << ", ";
+std::string op_to_str(Operator op) {
+    switch (op) {
+        case Op_Add:    return "+";
+        case Op_Sub:    return "-";
+        case Op_Mul:    return "*";
+        case Op_Div:    return "/";
+        case Op_Mod:    return "%";
+        case Op_Assign: return "=";
+        default:        return "";
     }
-    i++;
-  }
-  std::cout << ") ";
-
-  std::cout << "{\n";
-  std::cout << "@start\n";
-
-  // statement IR
-  for (auto statement : f.statements) {
-  }
-
-  std::cout << "}\n";
 }
 
-int main() {
-  // Read the source file
-  std::ifstream file("main.at");
-  if (!file.is_open())
-    return 1;
+void emit_expr(std::ostream &out, Expr *expr) {
+    if (!expr) return;
 
-  std::ostringstream ss;
-  ss << file.rdbuf();
+    switch (expr->kind) {
+        case Expr_Atom:
+            out << expr->at.value;
+            break;
+        case Expr_Operator:
+            // Omit extra parentheses for assignments to keep C IR readable
+            if (expr->op != Op_Assign) out << "(";
+            emit_expr(out, expr->left);
+            out << " " << op_to_str(expr->op) << " ";
+            emit_expr(out, expr->right);
+            if (expr->op != Op_Assign) out << ")";
+            break;
+        case Expr_FuncCall:
+            out << expr->func_call.name << "(";
+            for (size_t i = 0; i < expr->func_call.args.size(); ++i) {
+                emit_expr(out, expr->func_call.args[i]);
+                if (i < expr->func_call.args.size() - 1) out << ", ";
+            }
+            out << ")";
+            break;
+        default:
+            break;
+    }
+}
 
-  // Lex and Parse
-  Lexer l = lexer_lex_file(ss.str());
-  FunctionDefinition f{};
+void emit_c_ir(std::ostream &out, const FunctionDefinition &f) {
+    // 1. Return Type
+    out << "#include <stdlib.h>\n"
+      <<"#include <stdio.h>\n"
+      <<"#include <stdint.h>\n"
+      <<"#include <stdbool.h>\n\n";
+    if (f.return_type.has_value()) {
+        out << c_type(f.return_type.value());
+    } else {
+        out << "void";
+    }
 
-  if (parse_function_definition(l, f)) {
-    emit_qbe(f);
-  } else {
-    std::cerr << "Codegen failed: Parsing error." << std::endl;
-    return 1;
-  }
+    // 2. Name and Parameters
+    out << " " << f.name << "(";
+    for (size_t i = 0; i < f.parameters.size(); ++i) {
+        out << c_type(f.parameters[i].type) << " " << f.parameters[i].name;
+        if (i < f.parameters.size() - 1) out << ", ";
+    }
+    out << ") {\n";
 
-  return 0;
+    // 3. Statements
+    for (auto *stmt : f.statements) {
+        if (!stmt) continue;
+        out << "    ";
+        switch (stmt->kind) {
+            case Statement_Declaration:
+                out << c_type(stmt->declaration_statement->type) << " " 
+                    << stmt->declaration_statement->name << ";";
+                break;
+            case Statement_Definition:
+                out << c_type(stmt->definition_statement->type) << " " 
+                    << stmt->definition_statement->name << " = ";
+                emit_expr(out, stmt->definition_statement->right);
+                out << ";";
+                break;
+            case Statement_Expression:
+                emit_expr(out, stmt->expression_statement->root);
+                out << ";";
+                break;
+            case Statement_Return:
+                out << "return ";
+                if (stmt->return_statement && stmt->return_statement->root) {
+                    emit_expr(out, stmt->return_statement->root);
+                }
+                out << ";";
+                break;
+            default:
+                break;
+        }
+        out << "\n";
+    }
+    out << "}\n";
 }
