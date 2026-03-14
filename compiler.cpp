@@ -11,6 +11,7 @@ int main(int argc, char** argv) {
     std::string input_file = "";
     std::string output_file = "a.out";
     bool nocc = false;
+    bool emit_ir = false;
     bool output_specified = false;
 
     for (int i = 1; i < argc; ++i) {
@@ -25,13 +26,15 @@ int main(int argc, char** argv) {
             }
         } else if (arg == "--nocc") {
             nocc = true;
+        } else if (arg == "--ir") {
+            emit_ir = true;
         } else {
             input_file = arg;
         }
     }
 
     if (input_file.empty()) {
-        std::cerr << "Usage: " << argv[0] << " <input.at> [-o <out>] [--nocc]" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <input.at> [-o <out>] [--nocc] [--ir]" << std::endl;
         return 1;
     }
 
@@ -57,7 +60,6 @@ int main(int argc, char** argv) {
     std::string generated_c = ir_ss.str();
 
     if (nocc) {
-        // Old behavior: Just output the C code
         if (output_specified) {
             std::ofstream out_file(output_file);
             out_file << generated_c;
@@ -65,23 +67,33 @@ int main(int argc, char** argv) {
             std::cout << generated_c;
         }
     } else {
-        std::string cmd = "gcc -x c -o -g " + output_file + " -";
+        std::string cmd = "clang -x c ";
         
-        FILE* gcc_pipe = popen(cmd.c_str(), "w");
-        if (!gcc_pipe) {
-            std::cerr << "Error: Failed to invoke gcc." << std::endl;
+        if (emit_ir) {
+            cmd += "-S -emit-llvm ";
+            if (!output_specified && output_file == "a.out") {
+                output_file = "output.ll";
+            }
+        }
+
+        cmd += "-o " + output_file + " -";
+        
+        FILE* clang_pipe = popen(cmd.c_str(), "w");
+        if (!clang_pipe) {
+            std::cerr << "Error: Failed to invoke clang." << std::endl;
             return 1;
         }
 
-        fwrite(generated_c.c_str(), 1, generated_c.size(), gcc_pipe);
+        fwrite(generated_c.c_str(), 1, generated_c.size(), clang_pipe);
         
-        int status = pclose(gcc_pipe);
+        int status = pclose(clang_pipe);
         if (status != 0) {
-            std::cerr << "Error: gcc compilation failed." << std::endl;
+            std::cerr << "Error: clang compilation failed." << std::endl;
             return status;
         }
         
-        std::cout << "Successfully compiled to " << output_file << std::endl;
+        std::cout << "Successfully generated " << (emit_ir ? "LLVM IR" : "binary") 
+                  << " in " << output_file << std::endl;
     }
 
     return 0;

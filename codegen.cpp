@@ -54,7 +54,6 @@ void emit_expr(std::ostream &out, Expr *expr) {
             out << expr->at.value;
             break;
         case Expr_Operator:
-            // Omit extra parentheses for assignments to keep C IR readable
             if (expr->op != Op_Assign) out << "(";
             emit_expr(out, expr->left);
             out << " " << op_to_str(expr->op) << " ";
@@ -75,26 +74,32 @@ void emit_expr(std::ostream &out, Expr *expr) {
 }
 
 void emit_c_ir(std::ostream &out, const FunctionDefinition &f) {
-    // 1. Return Type
     out << "#include <stdlib.h>\n"
-      <<"#include <stdio.h>\n"
-      <<"#include <stdint.h>\n"
-      <<"#include <stdbool.h>\n\n";
-    if (f.return_type.has_value()) {
+        << "#include <stdio.h>\n"
+        << "#include <stdint.h>\n"
+        << "#include <stdbool.h>\n\n";
+
+    // Fix: main must return int in C
+    if (f.name == "main") {
+        out << "int";
+    } else if (f.return_type.has_value()) {
         out << c_type(f.return_type.value());
     } else {
         out << "void";
     }
 
-    // 2. Name and Parameters
     out << " " << f.name << "(";
     for (size_t i = 0; i < f.parameters.size(); ++i) {
-        out << c_type(f.parameters[i].type) << " " << f.parameters[i].name;
+        // Fix: first parameter of main (argc) must be int in C
+        if (f.name == "main" && i == 0) {
+            out << "int " << f.parameters[i].name;
+        } else {
+            out << c_type(f.parameters[i].type) << " " << f.parameters[i].name;
+        }
         if (i < f.parameters.size() - 1) out << ", ";
     }
     out << ") {\n";
 
-    // 3. Statements
     for (auto *stmt : f.statements) {
         if (!stmt) continue;
         out << "    ";
