@@ -1,0 +1,10 @@
+proc main(argc: i32, argv: []string) -> i32 {
+    let a: u32 = 100;
+    let b: u32;
+    let c: u32;
+    
+    b = 50;
+    c = a - b;
+    
+    return 0;
+}

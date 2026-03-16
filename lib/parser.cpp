@@ -193,13 +193,42 @@ Expr* parse_primary(Lexer& l) {
     Token t = lexer_current(l);
     switch (t.kind) {
         case Tok_Identifier: {
-            lexer_next(l);
-            Atom a {.kind = Atom_Variable, .value = t.literal,.type{}};
+            std::string name = t.literal;
+            lexer_next(l); // Consume the identifier
+
+            // CRITICAL: Check for '(' to handle printf(...)
+            if (lexer_current(l).kind == Tok_LParen) {
+                lexer_next(l); // Consume '('
+                FuncCall fn;
+                fn.name = name;
+                
+                if (lexer_current(l).kind != Tok_RParen) {
+                    while (true) {
+                        fn.args.push_back(parse_expression(l, 0));
+                        if (lexer_current(l).kind == Tok_Comma) {
+                            lexer_next(l);
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                lexer_expect(l, Tok_RParen);
+                return new Expr(fn); // Return as a function call expression
+            }
+            
+            // If no '(', it's just a variable access
+            Atom a {.kind = Atom_Variable, .value = name, .type{}};
             return new Expr(a);
         }
         case Tok_Number: {
             lexer_next(l);
-            Atom a {.kind = Atom_Constant, .value = t.literal,.type{}};
+            Atom a {.kind = Atom_Constant, .value = t.literal, .type{}};
+            return new Expr(a);
+        }
+        case Tok_StringLit: { 
+            // This allows printf("format string")
+            lexer_next(l);
+            Atom a {.kind = Atom_Constant, .value = t.literal, .type{}};
             return new Expr(a);
         }
         case Tok_LParen: {

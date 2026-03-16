@@ -1,32 +1,43 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -Wswitch -ggdb -I./ 
+CXXFLAGS = -Wall -Wextra -Wswitch -ggdb -I./lib -I./
 
 TARGET = arc
-OBJS = compiler.o lexer.o parser.o codegen.o
+BUILD_DIR = build
+SRC_DIR = src
+LIB_DIR = lib
 
-all: $(TARGET)
+OBJS = $(BUILD_DIR)/compiler.o \
+       $(BUILD_DIR)/lexer.o \
+       $(BUILD_DIR)/parser.o \
+       $(BUILD_DIR)/codegen.o
 
-$(TARGET): $(OBJS)
-	$(CXX) $(OBJS) -o $(TARGET) $(CXXFLAGS)
+all: $(BUILD_DIR) $(BUILD_DIR)/$(TARGET)
 
-compiler.o: compiler.cpp lexer.h parser.hpp codegen.hpp
-	$(CXX) -c compiler.cpp $(CXXFLAGS)
+$(BUILD_DIR)/$(TARGET): $(OBJS)
+	$(CXX) $(OBJS) -o $@ $(CXXFLAGS)
 
-lexer.o: lexer.cpp lexer.h
-	$(CXX) -c lexer.cpp $(CXXFLAGS)
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
-parser.o: parser.cpp parser.hpp lexer.h
-	$(CXX) -c parser.cpp $(CXXFLAGS)
+$(BUILD_DIR)/compiler.o: $(SRC_DIR)/compiler.cpp $(LIB_DIR)/lexer.h $(LIB_DIR)/parser.hpp $(LIB_DIR)/codegen.hpp
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
 
-codegen.o: codegen.cpp codegen.hpp parser.hpp
-	$(CXX) -c codegen.cpp $(CXXFLAGS)
+$(BUILD_DIR)/lexer.o: $(LIB_DIR)/lexer.cpp $(LIB_DIR)/lexer.h
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
+
+$(BUILD_DIR)/parser.o: $(LIB_DIR)/parser.cpp $(LIB_DIR)/parser.hpp $(LIB_DIR)/lexer.h
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
+
+$(BUILD_DIR)/codegen.o: $(LIB_DIR)/codegen.cpp $(LIB_DIR)/codegen.hpp $(LIB_DIR)/parser.hpp
+	$(CXX) -c $< -o $@ $(CXXFLAGS)
 
 clean:
-	rm -rf $(TARGET) $(OBJS)
+	rm -rf $(BUILD_DIR)
 
 install: all
-	cp $(TARGET) /usr/bin/$(TARGET)
+	cp $(BUILD_DIR)/$(TARGET) /usr/bin/$(TARGET)
 
 uninstall:
 	rm /usr/bin/$(TARGET)
-.PHONY: clean all
+
+.PHONY: clean all install uninstall
